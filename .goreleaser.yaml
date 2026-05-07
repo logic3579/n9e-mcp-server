@@ -5,7 +5,11 @@ before:
     - go mod tidy
 
 snapshot:
-  version_template: '{{ .Tag }}'
+  # Strip the leading 'v' from the tag so .Version matches non-snapshot mode
+  # (where goreleaser auto-strips it). Without this the archive name template
+  # below produces 'n9e-mcp-server-vv0.2.0-...' (double v) when the snapshot
+  # workflow sets GORELEASER_CURRENT_TAG=v0.2.0.
+  version_template: '{{ trimprefix .Tag "v" }}'
 
 checksum:
   name_template: 'checksums.txt'
