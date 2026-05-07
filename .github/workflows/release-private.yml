@@ -1,0 +1,58 @@
+name: Release Private (npm @logic3579)
+
+# Manually triggered. Builds binaries via goreleaser snapshot mode (no git tag,
+# no GitHub Release — keeps the original release.yml workflow untouched and
+# prevents it from firing) and publishes 7 packages to npm under @logic3579.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'npm version to publish (without v prefix, e.g. 0.1.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'npm publish --dry-run (no actual upload)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release-private:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@logic3579'
+
+      - name: Build binaries with goreleaser (snapshot)
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          # --snapshot: do not push tags, do not create GitHub Release.
+          # GORELEASER_CURRENT_TAG forces archive names to use the supplied version
+          # (otherwise goreleaser uses HEAD short SHA in snapshot mode).
+          args: release --clean --snapshot
+        env:
+          GORELEASER_CURRENT_TAG: v${{ inputs.version }}
+
+      - name: Publish to npm under @logic3579
+        run: |
+          node scripts/publish-npm-private.js "${{ inputs.version }}" \
+            --scope @logic3579 \
+            --repo logic3579/n9e-mcp-server \
+            --dist ./dist \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
